@@ -1,9 +1,10 @@
-const express = require ("express");
+const app = require('express')();
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);
 
-const app = express();
 const port = 5000;
 
-app.get("/test", (req, res) => {
+app.get('/test', (req, res) => {
     const users = [
         {id: 0, name: 'User1'},
         {id: 1, name: 'User2'},
@@ -11,6 +12,16 @@ app.get("/test", (req, res) => {
     ];
 
     res.json(users);
-})
 
-app.listen(port);
+    console.log('data has been send');
+});
+
+io.on('connection', (client) => {
+    console.log('a user connected');
+
+    client.on('disconnect', () => {
+        console.log('user disconnected');
+    });
+});
+
+server.listen(port);
