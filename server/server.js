@@ -1,27 +1,47 @@
-const app = require('express')();
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+// add middleware to ensure we can receive json
+app.use(express.json());
 
 const port = 5000;
 
-app.get('/test', (req, res) => {
-    const users = [
-        {id: 0, name: 'User1'},
-        {id: 1, name: 'User2'},
-        {id: 2, name: 'User3'},
-    ];
+const rooms = new Map();
 
-    res.json(users);
+app.post('/rooms', (req, res) => {
+    const { roomID, userName } = req.body;
 
-    console.log('data has been send');
-});
+    if (!rooms.has(roomID)) {
+        rooms.set(
+            roomID,
+            new Map([
+                ['users', new Map()],
+                ['messages', []]
+            ])
+        );
+    }
 
-io.on('connection', (client) => {
-    console.log('a user connected');
+    console.log(rooms);
+    res.send();
+})
+
+io.on('connection', client => {
+    console.log(`user ${client.id} connected`)
 
     client.on('disconnect', () => {
-        console.log('user disconnected');
+        console.log('client disconnect...', client.id);
     });
+
+    client.on('error', (err) => {
+        console.log('received error from client:', client.id);
+        console.log(err);
+    });
+
 });
 
-server.listen(port);
+server.listen(port, () => console.log(`Listening on port ${port}`));
