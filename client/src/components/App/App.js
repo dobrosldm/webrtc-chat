@@ -16,12 +16,20 @@ class App extends Component {
             roomID: null,
             messages: [],
             usersOnline: []
-        }
+        };
 
         this.join = this.join.bind(this);
+        this.sendMessage = this.sendMessage.bind(this);
+    }
 
+    componentDidMount() {
         socket.on('update_users', users => {
-           this.setState({ usersOnline: users });
+            this.setState({ usersOnline: users });
+        });
+
+        socket.on('update_messages', (messages) => {
+            console.log(this.state.messages);
+            this.setState({ messages });
         });
     }
 
@@ -42,13 +50,23 @@ class App extends Component {
         });
     }
 
+    sendMessage(message) {
+        const messageObj = {
+            roomID: this.state.roomID,
+            userName: this.state.userName,
+            message
+        };
+
+        socket.emit('room_new_message', messageObj);
+    }
+
     render() {
         return (
             <div>
                 { !this.state.joined ?
-                    <RegisterForm join={this.join}/>
+                    <RegisterForm join={this.join} />
                     :
-                    <ChatBox />
+                    <ChatBox {...this.state} sendMessage={this.sendMessage} />
                 }
             </div>
         );

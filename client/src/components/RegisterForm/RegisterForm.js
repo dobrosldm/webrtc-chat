@@ -1,7 +1,5 @@
 import React, {Component} from 'react';
 
-import axios from 'axios';
-
 class RegisterForm extends Component {
     constructor(props) {
         super(props);
@@ -10,7 +8,7 @@ class RegisterForm extends Component {
             userName: "",
             roomID: "",
             isJoining: false
-        }
+        };
 
         this.handleUserNameInput = this.handleUserNameInput.bind(this);
         this.handleRoomIDInput = this.handleRoomIDInput.bind(this);
@@ -27,13 +25,13 @@ class RegisterForm extends Component {
 
     async onJoin() {
         if (!this.state.userName || !this.state.roomID) {
-            return alert("Incorrect data!")
+            return alert("Incorrect input!");
         }
 
         const currentUser = {
             roomID: this.state.roomID,
             userName: this.state.userName
-        }
+        };
 
         this.setState({ isJoining: true });
 
@@ -53,7 +51,7 @@ class RegisterForm extends Component {
                     type="text"
                     placeholder="Room ID"
                     value={this.state.roomID}
-                    onChange={ this.handleRoomIDInput }
+                    onChange={this.handleRoomIDInput}
                 />
                 <button
                     onClick={this.onJoin}
