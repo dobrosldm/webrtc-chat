@@ -4,6 +4,7 @@ import ChatBox from '../ChatBox/ChatBox';
 import RegisterForm from '../RegisterForm/RegisterForm';
 
 import socket from '../../socket';
+import axios from 'axios';
 
 class App extends Component {
     constructor(props) {
@@ -18,15 +19,27 @@ class App extends Component {
         }
 
         this.join = this.join.bind(this);
+
+        socket.on('update_users', users => {
+           this.setState({ usersOnline: users });
+        });
     }
 
-    join(currentUser) {
+    async join(currentUser) {
         this.setState({
             userName: currentUser.userName,
             roomID: currentUser.roomID
         });
 
-        this.setState({ joined: true });
+        socket.emit('join_room', currentUser);
+
+        const room = await axios.get(`/room/${currentUser.roomID}`);
+
+        this.setState({
+            messages: room.data.messages,
+            usersOnline: room.data.users,
+            joined: true
+        });
     }
 
     render() {

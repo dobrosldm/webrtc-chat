@@ -6,39 +6,62 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+const port = 5000;
+
 // add middleware to ensure we can receive json
 app.use(express.json());
 
-const port = 5000;
-
+// info about rooms
 const rooms = new Map();
 
-app.post('/rooms', (req, res) => {
-    const { roomID, userName } = req.body;
+// after entering a room send user current online and message history
+app.get('/room/:id', (req, res) => {
+    const roomID = req.params["id"];
+    let room;
 
-    if (!rooms.has(roomID)) {
-        rooms.set(
-            roomID,
-            new Map([
-                ['users', new Map()],
-                ['messages', []]
-            ])
-        );
+    if (rooms.has(roomID)) {
+        room = {
+            'users': Array.from(rooms.get(roomID).get('users').values()),
+            'messages': Array.from(rooms.get(roomID).get('messages').values())
+        };
+    } else {
+        room = { 'users': [], 'messages': [] };
     }
 
-    console.log(rooms);
-    res.send();
-})
+    console.log(room)
 
-io.on('connection', client => {
-    console.log(`user ${client.id} connected`)
+    res.json(room);
+});
 
-    client.on('disconnect', () => {
-        console.log('client disconnect...', client.id);
+io.on('connection', socket => {
+    console.log(`user ${socket.id} connected`)
+
+    // user initiates entering a room
+    socket.on('join_room', ({userName, roomID}) => {
+        // create room if it was not found
+        if (!rooms.has(roomID)) {
+            rooms.set(
+                roomID,
+                new Map([
+                    ['users', new Map()],
+                    ['messages', []]
+                ])
+            );
+        }
+
+        // emit other users
+        socket.join(roomID);
+        rooms.get(roomID).get('users').set(socket.id, userName);
+        const users = Array.from(rooms.get(roomID).get('users').values());
+        socket.to(roomID).broadcast.emit('update_users', users);
     });
 
-    client.on('error', (err) => {
-        console.log('received error from client:', client.id);
+    socket.on('disconnect', () => {
+        console.log('client disconnect...', socket.id);
+    });
+
+    socket.on('error', (err) => {
+        console.log('received error from client:', socket.id);
         console.log(err);
     });
 

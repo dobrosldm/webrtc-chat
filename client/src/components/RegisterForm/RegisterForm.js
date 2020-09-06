@@ -35,8 +35,6 @@ class RegisterForm extends Component {
             userName: this.state.userName
         }
 
-        await axios.post('/rooms', currentUser);
-
         this.setState({ isJoining: true });
 
         this.props.join(currentUser);
