@@ -14,13 +14,29 @@ class ChatBox extends Component {
         this.handleSend = this.handleSend.bind(this);
     }
 
+    // autoscroll to bottom when new message appears
+    scrollToBottom = () => {
+        this.messagesEnd.scrollIntoView({ behavior: "smooth" });
+    }
+
+    componentDidMount() {
+        this.scrollToBottom();
+    }
+
+    componentDidUpdate() {
+        this.scrollToBottom();
+    }
+
     handleMessageInput(e) {
         this.setState({ message: e.target.value });
     }
 
+    // sending message if it is not empty
     handleSend() {
-        this.props.sendMessage(this.state.message);
-        this.setState({ message: "" });
+        if (this.state.message) {
+            this.props.sendMessage(this.state.message);
+            this.setState({ message: "" });
+        }
     }
 
     render() {
@@ -40,28 +56,30 @@ class ChatBox extends Component {
                         })}
                     </ul>
                 </div>
-                <div className="messagesBox">
-                    <h2>Messages</h2>
-                    {this.props.messages.map( (messageObj, index) => {
-                        return <div>
-                            <div>{messageObj.message}</div>
-                            <div>{messageObj.userName +" on " + messageObj.time}</div>
-                        </div>
-                    })}
-                </div>
-                <div className="messageForm">
-                    <textarea
-                        className="messageInput"
-                        rows="3"
-                        value={this.state.message}
-                        onChange={this.handleMessageInput}
-                    />
-                    <button
-                        className="button"
-                        onClick={this.handleSend}
-                    >
-                        Send
-                    </button>
+                <div className="inputAndMessages">
+                    <div className="messagesBox">
+                        {this.props.messages.map( (messageObj, index) => {
+                            return <div key={messageObj.time}>
+                                <div>{messageObj.message}</div>
+                                <div>{messageObj.userName +" on " + messageObj.time}</div>
+                            </div>
+                        })}
+                        <div ref={(el) => { this.messagesEnd = el; }} />
+                    </div>
+                    <div className="messageForm">
+                        <textarea
+                            className="messageInput"
+                            rows="3"
+                            value={this.state.message}
+                            onChange={this.handleMessageInput}
+                        />
+                        <button
+                            className="button"
+                            onClick={this.handleSend}
+                        >
+                            Send
+                        </button>
+                    </div>
                 </div>
             </div>
         );

@@ -32,7 +32,7 @@ app.get('/room/:id', (req, res) => {
 });
 
 io.on('connection', socket => {
-    console.log(`Client connected - ${socket.id}`);
+    //console.log(`Client connected - ${socket.id}`);
 
     // user initiates entering a room
     socket.on('join_room', ({ userName, roomID }) => {
@@ -51,6 +51,9 @@ io.on('connection', socket => {
         socket.join(roomID);
         rooms.get(roomID).get('users').set(socket.id, userName);
         const users = Array.from(rooms.get(roomID).get('users').values());
+
+        console.log(`User ${userName} joined to room ${roomID}\nCurrent room online: ${users}`);
+
         socket.to(roomID).broadcast.emit('update_users', users);
     });
 
@@ -71,13 +74,17 @@ io.on('connection', socket => {
     socket.on('disconnect', () => {
         rooms.forEach( (value, roomID) => {
             if(value.get('users').has(socket.id)) {
+                const userName = value.get('users').get(socket.id);
                 value.get('users').delete(socket.id);
                 const users = Array.from(rooms.get(roomID).get('users').values());
+
+                console.log(`User ${userName} left room ${roomID}\nCurrent room online: ${users}`);
+
                 socket.to(roomID).broadcast.emit('update_users', users);
             }
         });
 
-        console.log(`Client disconnected - ${socket.id}`);
+        //console.log(`Client disconnected - ${socket.id}`);
     });
 
     socket.on('error', (err) => {

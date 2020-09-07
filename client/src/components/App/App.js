@@ -28,7 +28,6 @@ class App extends Component {
         });
 
         socket.on('update_messages', (messages) => {
-            console.log(this.state.messages);
             this.setState({ messages });
         });
     }
