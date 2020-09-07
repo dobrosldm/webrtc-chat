@@ -32,7 +32,7 @@ app.get('/room/:id', (req, res) => {
 });
 
 io.on('connection', socket => {
-    console.log(`user ${socket.id} connected`);
+    console.log(`Client connected - ${socket.id}`);
 
     // user initiates entering a room
     socket.on('join_room', ({ userName, roomID }) => {
@@ -54,7 +54,7 @@ io.on('connection', socket => {
         socket.to(roomID).broadcast.emit('update_users', users);
     });
 
-    // put new message into room and emit other participants
+    // put new message into server and emit other room participants
     socket.on('room_new_message', ({ roomID, userName, message}) => {
         const date = new Date();
         const messageObj = {
@@ -67,12 +67,21 @@ io.on('connection', socket => {
         io.in(roomID).emit('update_messages', Array.from(rooms.get(roomID).get('messages').values()));
     });
 
+    // when user disconnects update room info and emit other room participants
     socket.on('disconnect', () => {
-        console.log('client disconnect...', socket.id);
+        rooms.forEach( (value, roomID) => {
+            if(value.get('users').has(socket.id)) {
+                value.get('users').delete(socket.id);
+                const users = Array.from(rooms.get(roomID).get('users').values());
+                socket.to(roomID).broadcast.emit('update_users', users);
+            }
+        });
+
+        console.log(`Client disconnected - ${socket.id}`);
     });
 
     socket.on('error', (err) => {
-        console.log('received error from client:', socket.id);
+        console.log('! Received error from client:', socket.id);
         console.log(err);
     });
 
