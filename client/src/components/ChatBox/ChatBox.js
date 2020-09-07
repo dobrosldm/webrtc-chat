@@ -26,6 +26,9 @@ class ChatBox extends Component {
     render() {
         return (
             <div className="chatBox">
+                <div className="inviteBar">
+                    <b>Invite users to chat by copying this link - {'http://localhost:3000/'+this.props.roomID}</b>
+                </div>
                 <div className="chatTitle">
                     <b>Room: {this.props.roomID}</b>
                 </div>

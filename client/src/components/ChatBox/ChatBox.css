@@ -4,13 +4,19 @@ body {
 
 .chatBox {
     width: 70%;
-    height: 500px;
+    height: 550px;
     margin: auto auto;
+}
+
+.inviteBar {
+    width: 100%;
+    height: 30px;
+    background: khaki;
 }
 
 .chatTitle {
     width: 100%;
-    height: 30px;
+    height: 50px;
     background: darkcyan;
 }
 

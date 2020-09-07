@@ -6,7 +6,7 @@ class RegisterForm extends Component {
 
         this.state = {
             userName: "",
-            roomID: "",
+            roomID: window.location.pathname.slice(1, window.location.pathname.length),
             isJoining: false
         };
 
