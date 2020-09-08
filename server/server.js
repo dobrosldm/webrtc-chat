@@ -71,7 +71,6 @@ io.on('connection', socket => {
         io.in(roomID).emit('update_messages', Array.from(rooms.get(roomID).get('messages').values()));
     });
 
-
     // set broadcaster
     socket.on("broadcaster", (roomID) => {
         if (!broadcaster[roomID]) {
@@ -82,24 +81,23 @@ io.on('connection', socket => {
 
     // emit broadcaster about new watcher
     socket.on("watcher", (roomID) => {
-        console.log("received watcher on server");
         socket.in(roomID).to(broadcaster[roomID]).emit("watcher", socket.id);
     });
 
+    // redirect offer to watcher
     socket.on("offer", (roomID, id, message) => {
         socket.in(roomID).to(id).emit("offer", socket.id, message);
     });
 
+    // redirect answer to broadcaster
     socket.on("answer", (roomID, id, message) => {
         socket.in(roomID).to(broadcaster[roomID]).emit("answer", socket.id, message);
     });
 
+    // exchange candidates between broadcaster and watcher
     socket.on("candidate", (id, message) => {
-        //console.log("received candidate on server");
         socket.to(id).emit("candidate", socket.id, message);
     });
-
-
 
     // when user disconnects update room info and emit other room participants
     socket.on('disconnect', () => {
@@ -112,10 +110,15 @@ io.on('connection', socket => {
                 console.log(`User ${userName} left room ${roomID}\nCurrent room online: ${users}`);
 
                 socket.to(roomID).broadcast.emit('update_users', users);
+
+                // check if disconnected user was broadcaster
+                if (broadcaster[roomID] === socket.id) {
+                    delete broadcaster[roomID];
+                } else {
+                    socket.in(roomID).to(broadcaster).emit("disconnectPeer", socket.id);
+                }
             }
         });
-
-        //console.log(`Client disconnected - ${socket.id}`);
     });
 
     socket.on('error', (err) => {

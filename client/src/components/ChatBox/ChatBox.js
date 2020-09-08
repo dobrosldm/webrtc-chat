@@ -114,6 +114,11 @@ class ChatBox extends Component {
         this.props.socket.on("candidate", (id, candidate) => {
             peerConnections[id].addIceCandidate(new RTCIceCandidate(candidate));
         });
+
+        this.props.socket.on("disconnectPeer", id => {
+            peerConnections[id].close();
+            delete peerConnections[id];
+        });
     }
 
     startWatch() {
@@ -150,6 +155,10 @@ class ChatBox extends Component {
             peerConnection
                 .addIceCandidate(new RTCIceCandidate(candidate))
                 .catch(e => console.error(e));
+        });
+
+        this.props.socket.on("disconnectPeer", () => {
+            peerConnection.close();
         });
     }
 
