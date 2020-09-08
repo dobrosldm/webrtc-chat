@@ -1,8 +1,8 @@
 .chatBox {
     font-size: 20px;
     width: 70%;
-    height: 550px;
-    margin: 40px auto auto;
+    height: 680px;
+    margin: 20px auto auto;
 }
 
 .inviteBar {
@@ -58,8 +58,8 @@ li::after {
 }
 
 .wholeMessage {
-    margin-top: 10px;
-    margin-left: 10px;
+    margin-top: 15px;
+    margin-left: 15px;
 }
 
 .message {
@@ -95,4 +95,14 @@ li::after {
     display: inline;
     position: relative;
     left: 3%;
+}
+
+.broadcastBox {
+    margin-top: 5px;
+    text-align: center;
+}
+
+video {
+    margin-top: 5px;
+    width: 90%;
 }

@@ -72,9 +72,10 @@ io.on('connection', socket => {
     });
 
     // set broadcaster
-    socket.on("broadcaster", (roomID) => {
+    socket.on("broadcaster", (roomID, userName) => {
         if (!broadcaster[roomID]) {
             broadcaster[roomID] = socket.id;
+            broadcaster[roomID+"_name"] = userName;
             console.log("Broadcaster set");
         }
     });
@@ -99,6 +100,21 @@ io.on('connection', socket => {
         socket.to(id).emit("candidate", socket.id, message);
     });
 
+    socket.on("broadcastInfo", (roomID) => {
+        let info = {
+            broadcasting: false,
+            broadcasterID: null,
+            broadcasterName: null
+        };
+        if (broadcaster[roomID]) {
+            info.broadcasting = true;
+            info.broadcasterID = broadcaster[roomID];
+            info.broadcasterName = broadcaster[roomID+"_name"];
+        }
+
+        io.in(roomID).emit("broadcastInfo", info);
+    });
+
     // when user disconnects update room info and emit other room participants
     socket.on('disconnect', () => {
         rooms.forEach( (value, roomID) => {
@@ -107,13 +123,14 @@ io.on('connection', socket => {
                 value.get('users').delete(socket.id);
                 const users = Array.from(rooms.get(roomID).get('users').values());
 
-                console.log(`User ${userName} left room ${roomID}\nCurrent room online: ${users}`);
+                console.log(`User ${userName} left room ${roomID}\nCurrent room online: ${users.length === 0 ? "nobody" : users}`);
 
                 socket.to(roomID).broadcast.emit('update_users', users);
 
                 // check if disconnected user was broadcaster
                 if (broadcaster[roomID] === socket.id) {
                     delete broadcaster[roomID];
+                    delete broadcaster[roomID+"_name"];
                 } else {
                     socket.in(roomID).to(broadcaster).emit("disconnectPeer", socket.id);
                 }

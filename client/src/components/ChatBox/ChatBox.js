@@ -3,7 +3,7 @@ import React, {Component} from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './ChatBox.css';
 
-// specify stun server
+// specify stun servers
 const config = {
     iceServers: [
         {url: "stun:stun.l.google.com:19302"},
@@ -23,7 +23,10 @@ class ChatBox extends Component {
         super(props);
 
         this.state = {
-            message: ""
+            message: "",
+            anyoneBroadcasting: false,
+            broadcasterID: null,
+            broadcasterName: null
         };
 
         this.handleMessageInput = this.handleMessageInput.bind(this);
@@ -40,6 +43,15 @@ class ChatBox extends Component {
 
     componentDidMount() {
         this.scrollToBottom();
+
+        this.props.socket.emit("broadcastInfo", this.props.roomID);
+        this.props.socket.on("broadcastInfo", info => {
+            this.setState({
+                anyoneBroadcasting: info.broadcasting,
+                broadcasterID: info.broadcasterID,
+                broadcasterName: info.broadcasterName
+            });
+        });
     }
 
     componentDidUpdate() {
@@ -80,7 +92,8 @@ class ChatBox extends Component {
             .getUserMedia(constraints)
             .then(stream => {
                 video.srcObject = stream;
-                this.props.socket.emit("broadcaster", this.props.roomID);
+                this.props.socket.emit("broadcaster", this.props.roomID, this.props.userName);
+                this.props.socket.emit("broadcastInfo", this.props.roomID);
             })
             .catch(error => console.error(error));
 
@@ -164,46 +177,58 @@ class ChatBox extends Component {
 
     render() {
         return (
-            <div className="chatBox">
-                <button className="btn btn-warning" onClick={this.startBroadcast}>Start video-sharing</button>
-                <button className="btn btn-info" onClick={this.startWatch}>I'm watcher</button>
-                <video playsInline autoPlay></video>
-                <div className="inviteBar">
-                    <b>Invite link (this computer users only) - {'http://localhost:3000/'+this.props.roomID}</b>
-                </div>
-                <div className="chatTitle">
-                    <b>Chat room: <i>{this.props.roomID}</i></b>
-                </div>
-                <div className="onlineBar">
-                    <b>Users online ({this.props.usersOnline.length}):</b>
-                    <ul>
-                        {this.props.usersOnline.map( (name, index) => {
-                            return <li key={index}>{this.props.userName === name ? name + " (me)" : name}</li>
-                        })}
-                    </ul>
-                </div>
-                <div className="inputAndMessages">
-                    <div className="messagesBox">
-                        {this.props.messages.map( (messageObj, index) => {
-                            return <div className="wholeMessage" key={index}>
-                                <div className="message">{messageObj.message}</div>
-                                <div className="info">
-                                    <i>
-                                        <span>From </span>
-                                        <u>{
-                                            messageObj.userName === this.props.userName
-                                                ? "me"
-                                                : messageObj.userName
-                                        }</u>
-                                        <span> on </span>
-                                        <u>{messageObj.time}</u>
-                                    </i>
-                                </div>
-                            </div>
-                        })}
-                        <div ref={(el) => { this.messagesEnd = el; }} />
+            <div>
+
+                <div className="chatBox">
+                    <div className="inviteBar">
+                        <b>Invite link (this computer users only) - {'http://localhost:3000/'+this.props.roomID}</b>
                     </div>
-                    <div className="messageForm">
+                    <div className="chatTitle">
+                        <b>Chat room: <i>{this.props.roomID}</i></b>
+                    </div>
+                    <div className="onlineBar">
+                        <b>Users online ({this.props.usersOnline.length}):</b>
+                        <ul>
+                            {this.props.usersOnline.map( (name, index) => {
+                                return <li key={index}>{this.props.userName === name ? name + " (me)" : name}</li>
+                            })}
+                        </ul>
+                        <div className="broadcastBox">
+                            {this.state.anyoneBroadcasting ?
+                                <button
+                                    className="btn btn-info"
+                                    onClick={this.startWatch}
+                                >
+                                    Watch <i>{this.state.broadcasterName}</i>'s broadcast
+                                </button>
+                                :
+                                <button className="btn btn-warning" onClick={this.startBroadcast}>Start broadcast</button>
+                            }
+                            <br/><video playsInline autoPlay />
+                        </div>
+                    </div>
+                    <div className="inputAndMessages">
+                        <div className="messagesBox">
+                            {this.props.messages.map( (messageObj, index) => {
+                                return <div className="wholeMessage" key={index}>
+                                    <div className="message">{messageObj.message}</div>
+                                    <div className="info">
+                                        <i>
+                                            <span>From </span>
+                                            <u>{
+                                                messageObj.userName === this.props.userName
+                                                    ? "me"
+                                                    : messageObj.userName
+                                            }</u>
+                                            <span> on </span>
+                                            <u>{messageObj.time}</u>
+                                        </i>
+                                    </div>
+                                </div>
+                            })}
+                            <div ref={(el) => { this.messagesEnd = el; }} />
+                        </div>
+                        <div className="messageForm">
                         <textarea
                             className="form-control messageInput"
                             rows="2"
@@ -211,12 +236,13 @@ class ChatBox extends Component {
                             onKeyPress={this.handleUserKeyPress}
                             onChange={this.handleMessageInput}
                         />
-                        <button
-                            className="btn bttn btn-outline-primary"
-                            onClick={this.handleSend}
-                        >
-                            Send
-                        </button>
+                            <button
+                                className="btn bttn btn-outline-primary"
+                                onClick={this.handleSend}
+                            >
+                                Send
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
