@@ -14,6 +14,8 @@ class ChatBox extends Component {
         this.handleMessageInput = this.handleMessageInput.bind(this);
         this.handleUserKeyPress = this.handleUserKeyPress.bind(this);
         this.handleSend = this.handleSend.bind(this);
+        this.startBroadcast = this.startBroadcast.bind(this);
+        this.startWatch = this.startWatch.bind(this);
     }
 
     // autoscroll to bottom when new message appears
@@ -48,9 +50,79 @@ class ChatBox extends Component {
         }
     }
 
+    startBroadcast() {
+        // all connected peers
+        const peerConnections = {};
+        // specify stun server
+        const config = {
+            iceServers: [
+                //{url: "stun:23.21.150.121"},
+                {url: "stun:stun.l.google.com:19302"}
+            ]
+        };
+
+        const video = document.querySelector("video");
+        const constraints = {
+            video: { facingMode: "user" },
+            audio: true,
+        };
+
+        // get stream from media device
+        navigator.mediaDevices
+            .getUserMedia(constraints)
+            .then(stream => {
+                video.srcObject = stream;
+                this.props.socket.emit("broadcaster", this.props.roomID);
+            })
+            .catch(error => console.error(error));
+
+        this.props.socket.on("watcher", id => {
+            const peerConnection = new RTCPeerConnection(config);
+            peerConnections[id] = peerConnection;
+
+            let stream = video.srcObject;
+            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    this.props.socket.emit("candidate", id, event.candidate);
+                }
+            };
+
+            peerConnection
+                .createOffer()
+                .then(sdp => peerConnection.setLocalDescription(sdp))
+                .then(() => {
+                    this.props.socket.emit("offer", this.props.roomID, id, peerConnection.localDescription);
+                });
+        });
+    }
+
+    startWatch() {
+        let peerConnection;
+        const config = {
+            iceServers: [
+                //{url: "stun:23.21.150.121"},
+                {url: "stun:stun.l.google.com:19302"}
+            ]
+        };
+
+        const video = document.querySelector("video");
+        const constraints = {
+            video: { facingMode: "user" },
+            audio: true,
+        };
+
+        this.props.socket.emit("watcher", this.props.roomID);
+
+    }
+
     render() {
         return (
             <div className="chatBox">
+                <button className="btn btn-warning" onClick={this.startBroadcast}>Start video-sharing</button>
+                <button className="btn btn-info" onClick={this.startWatch}>I'm watcher</button>
+                <video playsInline autoPlay></video>
                 <div className="inviteBar">
                     <b>Invite link (this computer users only) - {'http://localhost:3000/'+this.props.roomID}</b>
                 </div>

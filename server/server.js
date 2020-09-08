@@ -14,6 +14,8 @@ app.use(express.json());
 // info about rooms
 const rooms = new Map();
 
+let broadcaster = {};
+
 // after entering a room send user current online and message history
 app.get('/room/:id', (req, res) => {
     const roomID = req.params["id"];
@@ -69,7 +71,22 @@ io.on('connection', socket => {
         io.in(roomID).emit('update_messages', Array.from(rooms.get(roomID).get('messages').values()));
     });
 
-    // when user disconnects update room info and emit other room participants
+
+    // set broadcaster
+    socket.on("broadcaster", (roomID) => {
+        if (!broadcaster[roomID]) {
+            broadcaster[roomID] = socket.id;
+            console.log("Broadcaster set");
+        }
+    });
+
+    // emit broadcaster about new watcher
+    socket.on("watcher", (roomID) => {
+        console.log("received watcher on server");
+        socket.in(roomID).to(broadcaster[roomID]).emit("watcher", socket.id);
+    });
+
+   // when user disconnects update room info and emit other room participants
     socket.on('disconnect', () => {
         rooms.forEach( (value, roomID) => {
             if(value.get('users').has(socket.id)) {

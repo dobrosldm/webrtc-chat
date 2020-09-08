@@ -15,7 +15,8 @@ class App extends Component {
             userName: null,
             roomID: null,
             messages: [],
-            usersOnline: []
+            usersOnline: [],
+            socket
         };
 
         this.join = this.join.bind(this);
