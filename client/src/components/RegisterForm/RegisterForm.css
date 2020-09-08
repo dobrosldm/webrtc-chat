@@ -1,0 +1,14 @@
+.wrapper {
+    font-size: 24px;
+    width: 25%;
+    margin: 10% auto;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid black;
+    border-radius: 15px;
+}
+
+input {
+    margin-bottom: 10px;
+    width: 80%;
+}

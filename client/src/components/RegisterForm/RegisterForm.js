@@ -1,5 +1,8 @@
 import React, {Component} from 'react';
 
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './RegisterForm.css';
+
 class RegisterForm extends Component {
     constructor(props) {
         super(props);
@@ -40,20 +43,27 @@ class RegisterForm extends Component {
 
     render() {
         return (
-            <div>
+            <div className="wrapper">
+                <span>Name</span>
+                <br/>
                 <input
                     type="text"
                     placeholder="Your name"
                     value={this.state.userName}
                     onChange={ this.handleUserNameInput }
                 />
+                <br/>
+                <span>Room</span>
+                <br/>
                 <input
                     type="text"
                     placeholder="Room ID"
                     value={this.state.roomID}
                     onChange={this.handleRoomIDInput}
                 />
+                <br/>
                 <button
+                    className="btn btn-primary"
                     onClick={this.onJoin}
                     disabled={this.state.isJoining}
                 >

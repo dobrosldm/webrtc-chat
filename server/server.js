@@ -59,10 +59,9 @@ io.on('connection', socket => {
 
     // put new message into server and emit other room participants
     socket.on('room_new_message', ({ roomID, userName, message}) => {
-        const date = new Date();
         const messageObj = {
             userName,
-            time: date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds(),
+            time: new Date().toTimeString().slice(0, 9),
             message
         };
 
