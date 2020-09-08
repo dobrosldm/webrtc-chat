@@ -86,7 +86,22 @@ io.on('connection', socket => {
         socket.in(roomID).to(broadcaster[roomID]).emit("watcher", socket.id);
     });
 
-   // when user disconnects update room info and emit other room participants
+    socket.on("offer", (roomID, id, message) => {
+        socket.in(roomID).to(id).emit("offer", socket.id, message);
+    });
+
+    socket.on("answer", (roomID, id, message) => {
+        socket.in(roomID).to(broadcaster[roomID]).emit("answer", socket.id, message);
+    });
+
+    socket.on("candidate", (id, message) => {
+        //console.log("received candidate on server");
+        socket.to(id).emit("candidate", socket.id, message);
+    });
+
+
+
+    // when user disconnects update room info and emit other room participants
     socket.on('disconnect', () => {
         rooms.forEach( (value, roomID) => {
             if(value.get('users').has(socket.id)) {

@@ -3,6 +3,21 @@ import React, {Component} from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './ChatBox.css';
 
+// specify stun server
+const config = {
+    iceServers: [
+        {url: "stun:stun.l.google.com:19302"},
+        {url: "stun:stun.stunprotocol.org:3478"}
+    ]
+};
+// specify additional options
+const options = {
+    optional: [
+        {DtlsSrtpKeyAgreement: true}, // to connect Chrome and Firefox
+        {RtpDataChannels: true} // Firefox DataChannels API
+    ]
+};
+
 class ChatBox extends Component {
     constructor(props) {
         super(props);
@@ -53,21 +68,14 @@ class ChatBox extends Component {
     startBroadcast() {
         // all connected peers
         const peerConnections = {};
-        // specify stun server
-        const config = {
-            iceServers: [
-                //{url: "stun:23.21.150.121"},
-                {url: "stun:stun.l.google.com:19302"}
-            ]
-        };
 
         const video = document.querySelector("video");
         const constraints = {
             video: { facingMode: "user" },
-            audio: true,
+            audio: true
         };
 
-        // get stream from media device
+        // get streams from media devices
         navigator.mediaDevices
             .getUserMedia(constraints)
             .then(stream => {
@@ -76,8 +84,9 @@ class ChatBox extends Component {
             })
             .catch(error => console.error(error));
 
+        // new user wants to join broadcast
         this.props.socket.on("watcher", id => {
-            const peerConnection = new RTCPeerConnection(config);
+            const peerConnection = new RTCPeerConnection(config, options);
             peerConnections[id] = peerConnection;
 
             let stream = video.srcObject;
@@ -96,25 +105,52 @@ class ChatBox extends Component {
                     this.props.socket.emit("offer", this.props.roomID, id, peerConnection.localDescription);
                 });
         });
+
+        this.props.socket.on("answer", (id, description) => {
+            console.log("received answer from watcher");
+            peerConnections[id].setRemoteDescription(description).catch(console.log);
+        });
+
+        this.props.socket.on("candidate", (id, candidate) => {
+            peerConnections[id].addIceCandidate(new RTCIceCandidate(candidate));
+        });
     }
 
     startWatch() {
         let peerConnection;
-        const config = {
-            iceServers: [
-                //{url: "stun:23.21.150.121"},
-                {url: "stun:stun.l.google.com:19302"}
-            ]
-        };
 
         const video = document.querySelector("video");
-        const constraints = {
-            video: { facingMode: "user" },
-            audio: true,
-        };
 
         this.props.socket.emit("watcher", this.props.roomID);
 
+        this.props.socket.on("offer", (id, description) => {
+            console.log("received offer from broadcaster");
+
+            peerConnection = new RTCPeerConnection(config, options);
+            peerConnection
+                .setRemoteDescription(description)
+                .then(() => peerConnection.createAnswer())
+                .then(sdp => peerConnection.setLocalDescription(sdp))
+                .then(() => {
+                    this.props.socket.emit("answer", this.props.roomID, id, peerConnection.localDescription);
+                });
+
+            peerConnection.ontrack = event => {
+                video.srcObject = event.streams[0];
+            };
+
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    this.props.socket.emit("candidate", id, event.candidate);
+                }
+            };
+        });
+
+        this.props.socket.on("candidate", (id, candidate) => {
+            peerConnection
+                .addIceCandidate(new RTCIceCandidate(candidate))
+                .catch(e => console.error(e));
+        });
     }
 
     render() {
@@ -133,7 +169,7 @@ class ChatBox extends Component {
                     <b>Users online ({this.props.usersOnline.length}):</b>
                     <ul>
                         {this.props.usersOnline.map( (name, index) => {
-                            return <li key={index}>{name}</li>
+                            return <li key={index}>{this.props.userName === name ? name + " (me)" : name}</li>
                         })}
                     </ul>
                 </div>
