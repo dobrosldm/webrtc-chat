@@ -1,6 +1,7 @@
 {
   "name": "client",
   "version": "1.0.0",
+  "description": "WebRTC chat room client",
   "private": true,
   "dependencies": {
     "axios": "^0.20.0",
