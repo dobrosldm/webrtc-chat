@@ -15,8 +15,7 @@ class App extends Component {
             userName: null,
             roomID: null,
             messages: [],
-            usersOnline: [],
-            socket
+            usersOnline: null
         };
 
         this.join = this.join.bind(this);
@@ -41,6 +40,7 @@ class App extends Component {
 
         socket.emit('join_room', currentUser);
 
+        // initial request to join (or create and join) a room
         const room = await axios.get(`/room/${currentUser.roomID}`);
 
         this.setState({

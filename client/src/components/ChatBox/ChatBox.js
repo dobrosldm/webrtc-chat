@@ -3,6 +3,8 @@ import React, {Component} from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './ChatBox.css';
 
+import socket from '../../socket';
+
 // specify stun servers
 const config = {
     iceServers: [
@@ -10,6 +12,7 @@ const config = {
         {url: "stun:stun.stunprotocol.org:3478"}
     ]
 };
+
 // specify additional options
 const options = {
     optional: [
@@ -26,7 +29,8 @@ class ChatBox extends Component {
             message: "",
             anyoneBroadcasting: false,
             broadcasterID: null,
-            broadcasterName: null
+            broadcasterName: null,
+            video: false
         };
 
         this.handleMessageInput = this.handleMessageInput.bind(this);
@@ -44,8 +48,10 @@ class ChatBox extends Component {
     componentDidMount() {
         this.scrollToBottom();
 
-        this.props.socket.emit("broadcastInfo", this.props.roomID);
-        this.props.socket.on("broadcastInfo", info => {
+        // request to check if somebody is already broadcasting
+        socket.emit("broadcastInfo", this.props.roomID);
+
+        socket.on("broadcastInfo", info => {
             this.setState({
                 anyoneBroadcasting: info.broadcasting,
                 broadcasterID: info.broadcasterID,
@@ -62,6 +68,7 @@ class ChatBox extends Component {
         this.setState({ message: e.target.value });
     }
 
+    // sending message on "Enter" press
     handleUserKeyPress(e) {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -69,166 +76,190 @@ class ChatBox extends Component {
         }
     }
 
-    // sending message if it is not empty
     handleSend() {
-        if (this.state.message) {
-            this.props.sendMessage(this.state.message);
+        // check if message is not empty
+        if (this.state.message.trim()) {
+            this.props.sendMessage(this.state.message.trim());
             this.setState({ message: "" });
         }
     }
 
     startBroadcast() {
-        // all connected peers
-        const peerConnections = {};
-
-        const video = document.querySelector("video");
-        const constraints = {
-            video: { facingMode: "user" },
-            audio: true
-        };
-
-        // get streams from media devices
-        navigator.mediaDevices
-            .getUserMedia(constraints)
-            .then(stream => {
-                video.srcObject = stream;
-                this.props.socket.emit("broadcaster", this.props.roomID, this.props.userName);
-                this.props.socket.emit("broadcastInfo", this.props.roomID);
-            })
-            .catch(error => console.error(error));
-
-        // new user wants to join broadcast
-        this.props.socket.on("watcher", id => {
-            const peerConnection = new RTCPeerConnection(config, options);
-            peerConnections[id] = peerConnection;
-
-            let stream = video.srcObject;
-            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-
-            peerConnection.onicecandidate = event => {
-                if (event.candidate) {
-                    this.props.socket.emit("candidate", id, event.candidate);
-                }
+        if (!this.state.video) {
+            // all connected peers
+            const peerConnections = {};
+            const video = document.querySelector("video");
+            const constraints = {
+                video: { facingMode: "user" },
+                audio: true
             };
 
-            peerConnection
-                .createOffer()
-                .then(sdp => peerConnection.setLocalDescription(sdp))
-                .then(() => {
-                    this.props.socket.emit("offer", this.props.roomID, id, peerConnection.localDescription);
+            // get streams from media devices
+            navigator.mediaDevices
+                .getUserMedia(constraints)
+                .then(stream => setupSubscriptions(stream))
+                .catch(error => console.error(error));
+
+            // executes only if media access was granted
+            const setupSubscriptions = stream => {
+                this.setState({video: true});
+                video.srcObject = stream;
+
+                // update broadcaster credits
+                socket.emit("broadcaster", this.props.roomID, this.props.userName);
+                socket.emit("broadcastInfo", this.props.roomID);
+
+                // new user wants to join broadcast
+                socket.on("watcher", id => {
+                    const peerConnection = new RTCPeerConnection(config, options);
+                    peerConnections[id] = peerConnection;
+
+                    let stream = video.srcObject;
+                    // add media tracks to peer
+                    stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+                    peerConnection.onicecandidate = event => {
+                        if (event.candidate) {
+                            socket.emit("candidate", id, event.candidate);
+                        }
+                    };
+
+                    peerConnection
+                        .createOffer()
+                        .then(sdp => peerConnection.setLocalDescription(sdp))
+                        .then(() => {
+                            socket.emit("offer", this.props.roomID, id, peerConnection.localDescription);
+                        });
                 });
-        });
 
-        this.props.socket.on("answer", (id, description) => {
-            console.log("received answer from watcher");
-            peerConnections[id].setRemoteDescription(description).catch(console.log);
-        });
+                // receive watcher's description
+                socket.on("answer", (id, description) => {
+                    peerConnections[id].setRemoteDescription(description).catch(console.log);
+                });
 
-        this.props.socket.on("candidate", (id, candidate) => {
-            peerConnections[id].addIceCandidate(new RTCIceCandidate(candidate));
-        });
+                // receive watcher's candidate
+                socket.on("candidate", (id, candidate) => {
+                    peerConnections[id].addIceCandidate(new RTCIceCandidate(candidate));
+                });
 
-        this.props.socket.on("disconnectPeer", id => {
-            peerConnections[id].close();
-            delete peerConnections[id];
-        });
+                socket.on("disconnectPeer", id => {
+                    if (peerConnections[id]) {
+                        this.setState({video: false});
+                        peerConnections[id].close();
+                        delete peerConnections[id];
+                    }
+                });
+            }
+        } else {
+            alert("Broadcast was already turned on");
+        }
     }
 
     startWatch() {
-        let peerConnection;
+        if (!this.state.video) {
+            let peerConnection;
+            const video = document.querySelector("video");
 
-        const video = document.querySelector("video");
+            this.setState({video: true});
+            // notify broadcaster to join
+            socket.emit("watcher", this.props.roomID);
 
-        this.props.socket.emit("watcher", this.props.roomID);
+            // receive offer from broadcaster
+            socket.on("offer", (id, description) => {
+                peerConnection = new RTCPeerConnection(config, options);
+                peerConnection
+                    .setRemoteDescription(description)
+                    .then(() => peerConnection.createAnswer())
+                    .then(sdp => peerConnection.setLocalDescription(sdp))
+                    .then(() => {
+                        socket.emit("answer", this.props.roomID, id, peerConnection.localDescription);
+                    });
 
-        this.props.socket.on("offer", (id, description) => {
-            console.log("received offer from broadcaster");
+                peerConnection.ontrack = event => {
+                    video.srcObject = event.streams[0];
+                };
 
-            peerConnection = new RTCPeerConnection(config, options);
-            peerConnection
-                .setRemoteDescription(description)
-                .then(() => peerConnection.createAnswer())
-                .then(sdp => peerConnection.setLocalDescription(sdp))
-                .then(() => {
-                    this.props.socket.emit("answer", this.props.roomID, id, peerConnection.localDescription);
-                });
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        socket.emit("candidate", id, event.candidate);
+                    }
+                };
+            });
 
-            peerConnection.ontrack = event => {
-                video.srcObject = event.streams[0];
-            };
+            // receive broadcaster's candidate
+            socket.on("candidate", (id, candidate) => {
+                peerConnection
+                    .addIceCandidate(new RTCIceCandidate(candidate))
+                    .catch(e => console.error(e));
+            });
 
-            peerConnection.onicecandidate = event => {
-                if (event.candidate) {
-                    this.props.socket.emit("candidate", id, event.candidate);
-                }
-            };
-        });
-
-        this.props.socket.on("candidate", (id, candidate) => {
-            peerConnection
-                .addIceCandidate(new RTCIceCandidate(candidate))
-                .catch(e => console.error(e));
-        });
-
-        this.props.socket.on("disconnectPeer", () => {
-            peerConnection.close();
-        });
+            socket.on("disconnectPeer", () => {
+                this.setState({video: false});
+                peerConnection.close();
+            });
+        } else {
+            alert("Broadcast was already turned on");
+        }
     }
+
 
     render() {
         return (
-            <div>
-
-                <div className="chatBox">
-                    <div className="inviteBar">
-                        <b>Invite link (this computer users only) - {'http://localhost:3000/'+this.props.roomID}</b>
+            <div className="chatBox">
+                <div className="inviteBar">
+                    <b>Invite link (this computer users only) - {'http://localhost:3000/'+this.props.roomID}</b>
+                </div>
+                <div className="chatTitle">
+                    <b>Chat room: <i>{this.props.roomID}</i></b>
+                </div>
+                <div className="onlineBar">
+                    <b>Users online ({this.props.usersOnline.length}):</b>
+                    <ul>
+                        {this.props.usersOnline.map( (arr, index) => {
+                            return <li key={index}>{socket.id === arr[0] ? arr[1] + " (me)" : arr[1]}</li>
+                        })}
+                    </ul>
+                    <div className="broadcastBox">
+                        {this.state.anyoneBroadcasting ?
+                            <button
+                                className="btn btn-info"
+                                onClick={this.startWatch}
+                            >
+                                Watch <i>{this.state.broadcasterName}</i>'s broadcast
+                            </button>
+                            :
+                            <button
+                                className="btn btn-warning"
+                                onClick={this.startBroadcast}
+                            >
+                                Start broadcast
+                            </button>
+                        }
+                        <br/><video playsInline autoPlay />
                     </div>
-                    <div className="chatTitle">
-                        <b>Chat room: <i>{this.props.roomID}</i></b>
-                    </div>
-                    <div className="onlineBar">
-                        <b>Users online ({this.props.usersOnline.length}):</b>
-                        <ul>
-                            {this.props.usersOnline.map( (name, index) => {
-                                return <li key={index}>{this.props.userName === name ? name + " (me)" : name}</li>
-                            })}
-                        </ul>
-                        <div className="broadcastBox">
-                            {this.state.anyoneBroadcasting ?
-                                <button
-                                    className="btn btn-info"
-                                    onClick={this.startWatch}
-                                >
-                                    Watch <i>{this.state.broadcasterName}</i>'s broadcast
-                                </button>
-                                :
-                                <button className="btn btn-warning" onClick={this.startBroadcast}>Start broadcast</button>
-                            }
-                            <br/><video playsInline autoPlay />
-                        </div>
-                    </div>
-                    <div className="inputAndMessages">
-                        <div className="messagesBox">
-                            {this.props.messages.map( (messageObj, index) => {
-                                return <div className="wholeMessage" key={index}>
-                                    <div className="message">{messageObj.message}</div>
-                                    <div className="info">
-                                        <i>
-                                            <span>From </span>
-                                            <u>{
-                                                messageObj.userName === this.props.userName
-                                                    ? "me"
-                                                    : messageObj.userName
-                                            }</u>
-                                            <span> on </span>
-                                            <u>{messageObj.time}</u>
-                                        </i>
-                                    </div>
+                </div>
+                <div className="inputAndMessages">
+                    <div className="messagesBox">
+                        {this.props.messages.map( (messageObj, index) => {
+                            return <div className="wholeMessage" key={index}>
+                                <div className="message">{messageObj.message}</div>
+                                <div className="info">
+                                    <i>
+                                        <span>From </span>
+                                        <u>{
+                                            messageObj.userName === this.props.userName && messageObj.senderID === socket.id
+                                                ? "me"
+                                                : messageObj.userName
+                                        }</u>
+                                        <span> on </span>
+                                        <u>{messageObj.time}</u>
+                                    </i>
                                 </div>
-                            })}
-                            <div ref={(el) => { this.messagesEnd = el; }} />
-                        </div>
-                        <div className="messageForm">
+                            </div>
+                        })}
+                        <div ref={(el) => { this.messagesEnd = el; }} />
+                    </div>
+                    <div className="messageForm">
                         <textarea
                             className="form-control messageInput"
                             rows="2"
@@ -236,13 +267,12 @@ class ChatBox extends Component {
                             onKeyPress={this.handleUserKeyPress}
                             onChange={this.handleMessageInput}
                         />
-                            <button
-                                className="btn bttn btn-outline-primary"
-                                onClick={this.handleSend}
-                            >
-                                Send
-                            </button>
-                        </div>
+                        <button
+                            className="btn bttn btn-outline-primary"
+                            onClick={this.handleSend}
+                        >
+                            Send
+                        </button>
                     </div>
                 </div>
             </div>
