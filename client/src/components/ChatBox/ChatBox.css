@@ -1,13 +1,15 @@
 .chatBox {
     font-size: 20px;
     width: 70%;
-    height: 680px;
+    height: 700px;
     margin: 20px auto auto;
 }
 
 .inviteBar {
+    font-size: 22px;
     width: 100%;
-    height: 30px;
+    height: 50px;
+    padding-top: 5px;
     text-align: center;
     background: khaki;
 }
