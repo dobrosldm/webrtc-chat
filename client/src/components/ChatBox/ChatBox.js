@@ -86,6 +86,7 @@ class ChatBox extends Component {
 
     startBroadcast() {
         if (!this.state.video) {
+            alert("Sorry for the inconvenience!\n\nCurrently only one user can watch room broadcast");
             // all connected peers
             const peerConnections = {};
             const video = document.querySelector("video");
@@ -157,6 +158,7 @@ class ChatBox extends Component {
 
     startWatch() {
         if (!this.state.video) {
+            alert("Sorry for the inconvenience!\n\nCurrently only one user can watch room broadcast");
             let peerConnection;
             const video = document.querySelector("video");
 
