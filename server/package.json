@@ -2,12 +2,12 @@
   "name": "server",
   "version": "1.0.0",
   "description": "WebRTC chat room server",
-  "main": "index.js",
+  "main": "src/server.js",
   "scripts": {
     "server-install": "npm install",
     "client-install": "cd ../client && npm install",
     "app": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "nodemon server.js",
+    "server": "nodemon src/server.js",
     "client": "cd ../client && npm start"
   },
   "author": "Dmitry Dobrovitsky",
