@@ -1,4 +1,4 @@
-function serverInit() {
+module.exports.serverInit = function() {
     const express = require("express");
     const http = require("http");
     const socketIO = require("socket.io");
@@ -21,6 +21,4 @@ function serverInit() {
     server.listen(port, () => console.log(`Listening on port ${port}`));
 
     return { app, io, rooms, broadcasters };
-}
-
-module.exports = { serverInit };
+};

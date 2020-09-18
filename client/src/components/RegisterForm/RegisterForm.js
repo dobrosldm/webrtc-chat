@@ -26,7 +26,7 @@ class RegisterForm extends Component {
         this.setState({ roomID: e.target.value });
     }
 
-    async onJoin() {
+    onJoin() {
         if (!this.state.userName || !this.state.roomID) {
             return alert("Incorrect input!");
         }

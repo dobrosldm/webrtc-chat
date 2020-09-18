@@ -1,4 +1,4 @@
-function expressHandler(app, rooms) {
+module.exports.expressHandler = function(app, rooms) {
     // after entering a room send user current online and message history
     app.get('/room/:id', (req, res) => {
         const roomID = req.params.id;
@@ -15,6 +15,4 @@ function expressHandler(app, rooms) {
 
         res.json(room);
     });
-}
-
-module.exports = { expressHandler };
+};

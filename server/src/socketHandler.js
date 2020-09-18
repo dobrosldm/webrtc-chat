@@ -1,4 +1,4 @@
-function socketHandler(rooms, io, broadcasters) {
+module.exports.socketHandler = function(rooms, io, broadcasters) {
     io.on('connection', socket => {
         // user initiates entering a room
         socket.on('join_room', ({ userName, roomID }) => {
@@ -21,7 +21,7 @@ function socketHandler(rooms, io, broadcasters) {
             console.log(`User ${userName} joined to room ${roomID}`);
 
             // emit other users
-            socket.to(roomID).broadcast.emit('update_users', users);
+            socket.to(roomID).emit('update_users', users);
         });
 
         // put new message into server and emit other room participants
@@ -94,7 +94,7 @@ function socketHandler(rooms, io, broadcasters) {
 
                     console.log(`User ${userName} left room ${roomID}`);
 
-                    socket.to(roomID).broadcast.emit('update_users', users);
+                    socket.to(roomID).emit('update_users', users);
 
                     // check if disconnected user was broadcaster
                     if (broadcasters[roomID] && broadcasters[roomID].id === socket.id) {
@@ -112,6 +112,4 @@ function socketHandler(rooms, io, broadcasters) {
         });
 
     });
-}
-
-module.exports = { socketHandler };
+};

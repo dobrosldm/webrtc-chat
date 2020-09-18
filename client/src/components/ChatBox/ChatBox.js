@@ -150,7 +150,7 @@ class ChatBox extends Component {
                         delete peerConnections[id];
                     }
                 });
-            }
+            };
         } else {
             alert("Broadcast was already turned on");
         }
